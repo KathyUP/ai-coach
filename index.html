@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI陪练</title>
+    <style>
+        body { font-family: Arial; max-width: 800px; margin: 40px auto; padding: 20px; }
+        textarea { width: 100%; height: 80px; margin: 10px 0; }
+        button { padding: 10px 20px; background: #4CAF50; color: white; border: none; cursor: pointer; }
+        #answer { background: #f9f9f9; padding: 15px; margin-top: 20px; border-left: 4px solid #4CAF50; }
+        /* 整个聊天区域 */
+#chat-history {
+  display: flex;
+  flex-direction: column;
+  gap: 12px; /* 消息间距 */
+  padding: 10px;
+  min-height: 300px;
+}
+
+/* 单条消息容器 */
+.message {
+  max-width: 80%; /* 防止超长文本撑满 */
+}
+
+/* 用户消息 - 靠右 */
+.message.user {
+  align-self: flex-end; /* 关键：靠右 */
+}
+
+/* AI 消息 - 靠左 */
+.message.ai {
+  align-self: flex-start; /* 关键：靠左 */
+}
+
+/* 气泡样式 */
+.bubble {
+  display: inline-block; /* 宽度由内容决定 */
+  padding: 10px 14px;
+  border-radius: 18px;
+  word-wrap: break-word; /* 长单词自动换行 */
+  line-height: 1.4;
+}
+
+/* 用户气泡样式 */
+.message.user .bubble {
+  background-color: #4CAF50; /* 绿色 */
+  color: white;
+  border-bottom-right-radius: 4px; /* 右下角变平（可选） */
+}
+
+/* AI 气泡样式 */
+.message.ai .bubble {
+  background-color: #f1f1f1; /* 浅灰 */
+  color: #333;
+  border-bottom-left-radius: 4px; /* 左下角变平（可选） */
+}
+.copy-btn {
+    margin-top: 6px;
+    padding: 4px 8px;
+    font-size: 12px;
+    background: #f0f0f0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.copy-btn:hover {
+    background: #e0e0e0;
+}
+    </style>
+</head>
+<body>
+    <h1>🤖 AI陪练</h1>
+    <div id="chat-history"></div>
+    <textarea id="question" placeholder="例如：说说虚拟DOM的原理？"></textarea><br>
+    <button id="send-btn" onclick="askAI()">提问</button>
+    <button onclick="clearHistory()">清空</button>
+    <!-- <div id="answer"></div> -->
+
+    <script>
+      let messages = []
+      document.getElementById('question').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            askAI();
+        }
+    });
+        async function askAI() {
+          if (document.getElementById('send-btn').disabled) return;
+          document.getElementById('send-btn').disabled = true;
+          const input = document.getElementById('question');
+          const question = input.value.trim()
+          if(!question) return
+          input.value = ''
+          messages.push({'role':"user",'content': question})
+          appendMessage("user",question)
+           const thinkingEl = appendMessage("ai",'思考中...','thinking-placeholder')
+
+            // document.getElementById('send-btn').disabled = true
+            // document.getElementById('chat-history').innerHTML += '<div class="message ai"><div class="bubble">思考中...</div></div>';
+            try{
+              const res = await fetch('http://localhost:5000/ask', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({messages})
+            });
+            const data = await res.json()
+            thinkingEl.remove()
+            const answer = data.answer || '抱歉，我无法回答这个问题'
+            messages.push({"role":"assistant","content":answer})
+            appendMessage("ai",answer)
+            scrollToBottom()
+
+            }catch(err){
+              console.log("请求失败",err)
+              thinkingEl.innerHTML = '<div class="bubble">网络错误，请稍后重试</div>'
+            }
+            
+            document.getElementById('send-btn').disabled = false
+        }
+        function clearHistory(){
+          messages = []
+          document.getElementById('chat-history').innerHTML=''
+          scrollToBottom()
+        }
+        function appendMessage(role,content,id=null){
+          const chatHistory = document.getElementById("chat-history")
+          const messageDiv = document.createElement("div")
+          console.log(chatHistory,'messageDiv==',messageDiv)
+          messageDiv.className = `message ${role}`
+          if(id) messageDiv.id = id
+          const bubble = document.createElement('div')
+            bubble.className = 'bubble'
+            const textNode = document.createTextNode(content)
+            bubble.appendChild(textNode)
+          if(role == "ai" && !id){
+            const copyBtn = document.createElement('button')
+            copyBtn.className = 'copy-btn'
+            copyBtn.textContent = '复制'
+            copyBtn.onclick = ()=>copyToClipboard(content,copyBtn)
+            bubble.appendChild(copyBtn)
+           
+            
+          }
+           messageDiv.appendChild(bubble)
+          console.log('messageDiv===',messageDiv)
+          chatHistory.appendChild(messageDiv)
+          return messageDiv
+        }
+        function scrollToBottom(){
+          const container = document.getElementById('chat-history');
+          container.scrollTop = container.scrollHeight;
+        }
+        async function copyToClipboard(content,btn){
+          if(!document.hasFocus()){
+            window.focus()
+          }
+          await navigator.clipboard.writeText(content)
+          btn.textContent = '已复制';
+          setTimeout(function(){
+             btn.textContent  = '复制'
+          },1000)
+        }
+
+    </script>
+</body>
+</html>
