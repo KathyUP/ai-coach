@@ -97,7 +97,7 @@
             // document.getElementById('send-btn').disabled = true
             // document.getElementById('chat-history').innerHTML += '<div class="message ai"><div class="bubble">思考中...</div></div>';
             try{
-              const res = await fetch('http://localhost:5000/ask', {
+              const res = await fetch('https://ai-coach-backend-lvdt.onrender.com/ask', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({messages})
